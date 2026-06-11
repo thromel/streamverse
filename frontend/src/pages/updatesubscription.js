@@ -1,3 +1,4 @@
+import API_BASE_URL from '../config';
 import React, {useState, useContext} from 'react';
 import {Header, Form} from '../components';
 import { JumbotronContainer } from '../containers/jumbotron';
@@ -28,7 +29,7 @@ export default function UpdateSubscription() {
 
         //send data to the backend
         try{
-            const response = await fetch('http://localhost:5000/api/subscription/update', {
+            const response = await fetch(`${API_BASE_URL}/api/subscription/update`, {
             method: 'POST',
             headers: {
                   'Content-Type' : 'application/json',
@@ -47,14 +48,14 @@ export default function UpdateSubscription() {
             console.log("after submit data in subscribe",responseData);
 
             if (response.status === 201){
-                /*const url3 = `http://localhost:5000/api/subscription/bill/${sub_id}`;
+                /*const url3 = `${API_BASE_URL}/api/subscription/bill/${sub_id}`;
                 const response3 = await fetch(url3);         
                 Bill = await response3.json(); 
                 Bill = Bill["bill"]["BILL"];
                 auth.set_bill(Bill);   
                 setTimeout(() => { console.log("World!"); }, 500);
                 //getting max_num of profiles of the user in new plan
-                const u = `http://localhost:5000/api/users/maxprofiles/${email}`;
+                const u = `${API_BASE_URL}/api/users/maxprofiles/${email}`;
                 const r = await fetch(u);
                 var d = await r.json();
                 d= d["mp"]["MAX_PROFILES"];

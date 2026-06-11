@@ -1,3 +1,4 @@
+import API_BASE_URL from '../config';
 import React, { useContext, useState,useEffect} from 'react';
 import {Form, Form2,Header} from '../components';
 import * as ROUTES from '../constants/routes';
@@ -10,7 +11,7 @@ export default function AccountSettings() {
 
     const [endate,setenddate] = useState('');
     async function fetchFromAPI (){   
-        const url = `http://localhost:5000/api/subscription/getenddate/${email}`;
+        const url = `${API_BASE_URL}/api/subscription/getenddate/${email}`;
         const response = await fetch(url);
         var data = await response.json();
         setenddate(data["ed"].ED);

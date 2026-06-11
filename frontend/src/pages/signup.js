@@ -1,3 +1,4 @@
+import API_BASE_URL from '../config';
 import React, {useState, useContext} from 'react';
 import {HeaderContainer} from '../containers/header';
 import {FooterContainer} from '../containers/footer';
@@ -29,7 +30,7 @@ export default function Signup(){
         event.preventDefault();
         //send data to the backend
         try{
-            const response = await fetch('http://localhost:5000/api/users/signup', {
+            const response = await fetch(`${API_BASE_URL}/api/users/signup`, {
             method: 'POST',
             headers: {
                   'Content-Type' : 'application/json',

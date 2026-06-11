@@ -1,6 +1,6 @@
-const HttpError = require('../models/http-error');
-const database = require('./database'); 
-const api_key = 'e7bafd491af23dcc2cc134b14174e118';
+const database = require('./database');
+const config = require('../config');
+const api_key = config.tmdbApiKey;
 const axios = require('axios');
 // const fetch = require('node-fetch');
 const url1 = `https://api.themoviedb.org/3/movie/now_playing?api_key=${api_key}&language=en-US&page=1`;
@@ -29,16 +29,11 @@ async function fetchMovieData (startPage, totalPages){
 
             try {
                 database.simpleExecute(`
-                BEGIN
-                    INSERT INTO MOVIE (MOVIE_ID, TITLE,
+                INSERT INTO movie (MOVIE_ID, TITLE,
                         DESCRIPTION, RELEASE_DATE, RATING, TOTAL_VOTES, IMAGE_URL, LANGUAGE, MATURITY_RATING)
-                VALUES (:movie_id, :title, :overview, TO_DATE (:release_date, 'yyyy-mm-dd'), 
-                :vote_average, :vote_count, :poster_path, :lang, :adult);
-                EXCEPTION
-                    WHEN DUP_VAL_ON_INDEX THEN
-                        NULL;
-                END;
-               `,
+                VALUES (:movie_id, :title, :overview, :release_date::date, 
+                :vote_average, :vote_count, :poster_path, :lang, :adult) ON CONFLICT DO NOTHING;
+`,
                {
                    movie_id : id,
                    title : title,
@@ -56,15 +51,9 @@ async function fetchMovieData (startPage, totalPages){
                 let genre_id = response.data.results[i].genre_ids[j];
                 console.log(response.data.results[i].genre_ids[j]);
                 database.simpleExecute(`
-                BEGIN
-                    INSERT INTO MOVIE_GENRE (MOVIE_ID, GENRE_ID) 
-                    VALUES (:movie_id, :genre_id);
-                EXCEPTION
-                    WHEN DUP_VAL_ON_INDEX THEN
-                        NULL;
-                    WHEN OTHERS THEN
-                        NULL;
-                END; `, {
+                INSERT INTO movie_GENRE (MOVIE_ID, GENRE_ID) 
+                    VALUES (:movie_id, :genre_id) ON CONFLICT DO NOTHING;
+`, {
                         movie_id : id,
                         genre_id : genre_id
                 });
@@ -96,13 +85,9 @@ async function fetchGenreData(){
             let {id, name} = response.data.genres[i];
             try {
                 database.simpleExecute(`
-                BEGIN
-                INSERT INTO GENRE (GENRE_ID, NAME, CONTENTS)
-                VALUES (:genre_id, :genre_name, 0);
-                EXCEPTION
-                    WHEN DUP_VAL_ON_INDEX THEN
-                        NULL;
-                END;`,
+                INSERT INTO genre (GENRE_ID, NAME, CONTENTS)
+                VALUES (:genre_id, :genre_name, 0) ON CONFLICT DO NOTHING;
+`,
                {
                     genre_id : id,
                     genre_name : name   
@@ -116,21 +101,6 @@ async function fetchGenreData(){
     });
 
 }
-
-async function startup () {
-    try {
-        console.log('Initializing database module');
-        await database.initialize();
-        console.log('Initialized database module');
-
-    } catch (err) {
-        console.error(err);
-        // process.exit(1); // Non-zero failure code
-    }
-};
-
-startup();
-
 
 async function fetchShowData(totalPages){
     for(pi =  1; pi <= totalPages; ++pi){
@@ -156,17 +126,11 @@ async function fetchShowData(totalPages){
 
             try {
                 database.simpleExecute(`
-                BEGIN
-                INSERT INTO SHOW (SHOW_ID, TITLE,
+                INSERT INTO show (SHOW_ID, TITLE,
                     DESCRIPTION, START_DATE, RATING, TOTAL_VOTES, IMAGE_URL, LANGUAGE, LENGTH, SEASONS, EPISODES, END_DATE)
-               VALUES (:show_id, :title, :overview, TO_DATE (:release_date, 'yyyy-mm-dd'), 
-               :vote_average, :vote_count, :poster_path, :lang, :len, :seasons, :episodes, TO_DATE (:last_air_date, 'yyyy-mm-dd'));
-               EXCEPTION
-                    WHEN DUP_VAL_ON_INDEX THEN
-                        NULL;
-                    WHEN OTHERS
-                        NULL;
-                END;`,
+               VALUES (:show_id, :title, :overview, :release_date::date, 
+               :vote_average, :vote_count, :poster_path, :lang, :len, :seasons, :episodes, :last_air_date::date) ON CONFLICT DO NOTHING;
+`,
                {
                    show_id : id,
                    title : name,
@@ -189,15 +153,9 @@ async function fetchShowData(totalPages){
                     let genre_id = response.data.results[i].genre_ids[j];
                     // console.log(response.data.results[i].genre_ids[j]);
                     database.simpleExecute(`
-                    BEGIN
-                    INSERT INTO SHOW_GENRE (SHOW_ID, GENRE_ID) 
-                    VALUES (:show_id, :genre_id);
-                    EXCEPTION
-                        WHEN DUP_VAL_ON_INDEX THEN
-                            NULL;
-                        WHEN OTHERS THEN
-                            NULL;
-                    END; `, {
+                    INSERT INTO show_GENRE (SHOW_ID, GENRE_ID) 
+                    VALUES (:show_id, :genre_id) ON CONFLICT DO NOTHING;
+`, {
                         show_id : id,
                         genre_id : genre_id
                 });
@@ -228,7 +186,7 @@ async function fetchGenreData(){
         for(i = 0 ; i < response.data.genres.length; ++i){
             let {id, name} = response.data.genres[i];
             try {
-                database.simpleExecute(`INSERT INTO GENRE (GENRE_ID, NAME, CONTENTS)
+                database.simpleExecute(`INSERT INTO genre (GENRE_ID, NAME, CONTENTS)
                 VALUES (:genre_id, :genre_name, 0)`,
                {
                     genre_id : id,
@@ -269,27 +227,17 @@ async function movieCredits (totalPages){
                             
                             try {
                                 await database.simpleExecute(`
-                                BEGIN    
-                                INSERT INTO CELEB (CELEB_ID, NAME) VALUES (:celeb_id, :celeb_name);
-                                    EXCEPTION
-                                    WHEN DUP_VAL_ON_INDEX THEN
-                                    NULL;
-                                END;    `, {
+                                INSERT INTO celeb (CELEB_ID, NAME) VALUES (:celeb_id, :celeb_name) ON CONFLICT DO NOTHING;
+`, {
                                     celeb_id : response.data.cast[i].id,
                                     celeb_name : response.data.cast[i].name
                                 });
                             console.log(response.data.cast[i].id, response.data.cast[i].name);
 
                                 await database.simpleExecute(
-                                    `BEGIN
-                                    INSERT INTO MOVIE_CELEB (CELEB_ID, MOVIE_ID, ROLE) 
-                                    VALUES (:celeb_id, :movie_id, :role);
-                                    EXCEPTION
-                                        WHEN DUP_VAL_ON_INDEX THEN
-                                        NULL;
-                                        WHEN OTHERS THEN
-                                        NULL;
-                                    END; `,{
+                                    `INSERT INTO movie_CELEB (CELEB_ID, MOVIE_ID, ROLE) 
+                                    VALUES (:celeb_id, :movie_id, :role) ON CONFLICT DO NOTHING;
+`,{
                                         celeb_id : response.data.cast[i].id,
                                         movie_id : id,
                                         role : response.data.cast[i].known_for_department
@@ -307,28 +255,17 @@ async function movieCredits (totalPages){
                         if (response.data.crew[i].known_for_department === 'Acting' || response.data.crew[i].known_for_department === 'Directing'){
                             try {
                                 await database.simpleExecute(`
-                                    BEGIN
-                                    INSERT INTO CELEB (CELEB_ID, NAME) VALUES (:celeb_id, :celeb_name);
-                                    EXCEPTION
-                                        WHEN DUP_VAL_ON_INDEX THEN
-                                        NULL;
-                                    END;
-                                    `, {
+                                    INSERT INTO celeb (CELEB_ID, NAME) VALUES (:celeb_id, :celeb_name) ON CONFLICT DO NOTHING;
+`, {
                                     celeb_id : response.data.crew[i].id,
                                     celeb_name : response.data.crew[i].name
                                 });
                             // console.log(response.data.cast[i].id, response.data.cast[i].name);
 
                                 await database.simpleExecute(
-                                    `BEGIN
-                                    INSERT INTO MOVIE_CELEB (CELEB_ID, MOVIE_ID, ROLE) 
-                                    VALUES (:celeb_id, :movie_id, :role);
-                                    EXCEPTION
-                                        WHEN DUP_VAL_ON_INDEX THEN
-                                        NULL;
-                                        WHEN OTHERS THEN
-                                        NULL;
-                                    END; `,{
+                                    `INSERT INTO movie_CELEB (CELEB_ID, MOVIE_ID, ROLE) 
+                                    VALUES (:celeb_id, :movie_id, :role) ON CONFLICT DO NOTHING;
+`,{
                                         celeb_id : response.data.crew[i].id,
                                         movie_id : id,
                                         role : response.data.crew[i].known_for_department
@@ -382,15 +319,8 @@ async function showCredits (totalPages){
                             
                             try {
                                 await database.simpleExecute(`
-                                    BEGIN
-                                    INSERT INTO CELEB (CELEB_ID, NAME) VALUES (:celeb_id, :celeb_name);
-                                    EXCEPTION
-                                        WHEN DUP_VAL_ON_INDEX THEN
-                                        NULL;
-                                        WHEN OTHERS THEN
-                                        NULL;
-                                    END;
-                                    `, {
+                                    INSERT INTO celeb (CELEB_ID, NAME) VALUES (:celeb_id, :celeb_name) ON CONFLICT DO NOTHING;
+`, {
                                     celeb_id : response.data.cast[i].id,
                                     celeb_name : response.data.cast[i].name
                                 });
@@ -401,15 +331,9 @@ async function showCredits (totalPages){
                             
                             try {
                                 await database.simpleExecute(
-                                    `BEGIN
-                                        INSERT INTO SHOW_CELEB (CELEB_ID, SHOW_ID, ROLE) 
-                                        VALUES (:celeb_id, :show_id, :role);
-                                    EXCEPTION
-                                        WHEN DUP_VAL_ON_INDEX THEN
-                                            NULL;
-                                        WHEN OTHERS THEN
-                                            NULL;
-                                    END; `,{
+                                    `INSERT INTO show_CELEB (CELEB_ID, SHOW_ID, ROLE) 
+                                        VALUES (:celeb_id, :show_id, :role) ON CONFLICT DO NOTHING;
+`,{
                                         celeb_id : response.data.cast[i].id,
                                         show_id : id,
                                         role : response.data.cast[i].known_for_department
@@ -427,15 +351,8 @@ async function showCredits (totalPages){
                         if (response.data.crew[i].known_for_department === 'Acting' || response.data.crew[i].known_for_department === 'Directing'){
                             try {
                                 await database.simpleExecute(`
-                                    BEGIN
-                                    INSERT INTO CELEB (CELEB_ID, NAME) VALUES (:celeb_id, :celeb_name);
-                                    EXCEPTION
-                                        WHEN DUP_VAL_ON_INDEX THEN
-                                        NULL;
-                                        WHEN OTHERS THEN
-                                        NULL;
-                                    END;
-                                    `, {
+                                    INSERT INTO celeb (CELEB_ID, NAME) VALUES (:celeb_id, :celeb_name) ON CONFLICT DO NOTHING;
+`, {
                                     celeb_id : response.data.crew[i].id,
                                     celeb_name : response.data.crew[i].name
                                 });
@@ -446,15 +363,9 @@ async function showCredits (totalPages){
                             
                             try {
                                 await database.simpleExecute(
-                                    `BEGIN
-                                    INSERT INTO SHOW_CELEB (CELEB_ID, SHOW_ID, ROLE) 
-                                    VALUES (:celeb_id, :show_id, :role);
-                                    EXCEPTION
-                                        WHEN DUP_VAL_ON_INDEX THEN
-                                        NULL;
-                                        WHEN OTHERS THEN
-                                        NULL;
-                                    END; `,{
+                                    `INSERT INTO show_CELEB (CELEB_ID, SHOW_ID, ROLE) 
+                                    VALUES (:celeb_id, :show_id, :role) ON CONFLICT DO NOTHING;
+`,{
                                         celeb_id : response.data.crew[i].id,
                                         show_id : id,
                                         role : response.data.crew[i].known_for_department
@@ -493,16 +404,10 @@ async function fetchEpisode(id){
 
             try {
                 await database.simpleExecute(`
-                BEGIN
-                INSERT INTO EPISODE 
+                INSERT INTO episode 
                 (SEASON_NO, EPISODE_NO, SHOW_ID, TITLE, DESCRIPTION, IMAGE_URL)
-                VALUES (:s_no, :e_no, :show_id, :title, :description, :img_url);
-                EXCEPTION
-                    WHEN DUP_VAL_ON_INDEX THEN
-                        NULL;
-                    WHEN OTHERS
-                        NULL;
-                END;`, {
+                VALUES (:s_no, :e_no, :show_id, :title, :description, :img_url) ON CONFLICT DO NOTHING;
+`, {
                     s_no : season_number,
                     e_no : episode_number,
                     show_id : id,
@@ -528,6 +433,11 @@ async function fetchEpisode(id){
 // showCredits(20);
 // fetchEpisode(60059);
 
-// fetchMovieData(20);
-// movieCredits(20);
-// export default requests;
+module.exports = {
+    fetchMovieData,
+    fetchShowData,
+    fetchGenreData,
+    movieCredits,
+    showCredits,
+    fetchEpisode,
+};

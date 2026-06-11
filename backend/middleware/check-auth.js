@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-
+const config = require('../config');
 const HttpError = require('../models/http-error');
 
 module.exports = (req, res, next) => {
@@ -13,7 +13,7 @@ module.exports = (req, res, next) => {
     if (!token) {
       throw new Error('Authentication failed!');
     }
-    const decodedToken = jwt.verify(token, 'supersecret_dont_share');
+    const decodedToken = jwt.verify(token, config.jwtSecret);
     req.userData = { EMAIL: decodedToken.EMAIL };
     next();
   } catch (err) {

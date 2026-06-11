@@ -1,3 +1,4 @@
+import API_BASE_URL from '../config';
 import React, {useState, useEffect,useContext}from 'react';
 import * as ROUTES from '../constants/routes';
 import {useHistory} from 'react-router-dom';
@@ -16,7 +17,7 @@ export function UpdatePhoneContainer({ Email }) {
     
     async function fetchFromAPI (){
         
-        const url = `http://localhost:5000/api/users/getphone/${email}`;
+        const url = `${API_BASE_URL}/api/users/getphone/${email}`;
         const response = await fetch(url);
         const data = await response.json();
         set_oldphone(data.phone["PHONE"]);
@@ -33,7 +34,7 @@ export function UpdatePhoneContainer({ Email }) {
 
         //send data to the backend
         try{
-            const response = await fetch('http://localhost:5000/api/users/updatephone', {
+            const response = await fetch(`${API_BASE_URL}/api/users/updatephone`, {
             method: 'PATCH',
             headers: {
                   'Content-Type' : 'application/json',

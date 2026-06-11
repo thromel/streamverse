@@ -1,5 +1,5 @@
-const api_key = 'e7bafd491af23dcc2cc134b14174e118';
-const axios = require('axios');
+const config = require('../config');
+const api_key = config.tmdbApiKey;
 const database = require('./database');
 
 // async function startup() {
@@ -191,14 +191,10 @@ async function main(documents, type) {
                 const {id1, id2, score} = arr[j];
                 
                 try {
-                    const result = await database.simpleExecute(`
-                    BEGIN
-                        INSERT INTO MOVIE_SIMILARITY(MOVIE_ID1, MOVIE_ID2, SCORE)
-                        VALUES(:id1, :id2, :score);
-                    EXCEPTION
-                        WHEN DUP_VAL_ON_INDEX THEN
-                            NULL;
-                    END;
+                    await database.simpleExecute(`
+                        INSERT INTO movie_similarity (movie_id1, movie_id2, score)
+                        VALUES (:id1, :id2, :score)
+                        ON CONFLICT DO NOTHING
                     `, {
                         id1 : id1,
                         id2 : id2,
@@ -219,14 +215,10 @@ async function main(documents, type) {
                 const {id1, id2, score} = arr[j];
                 
                 try {
-                    const result = await database.simpleExecute(`
-                    BEGIN
-                        INSERT INTO SHOW_SIMILARITY(SHOW_ID1, SHOW_ID2, SCORE)
-                        VALUES(:id1, :id2, :score);
-                    EXCEPTION
-                        WHEN DUP_VAL_ON_INDEX THEN
-                            NULL;
-                    END;
+                    await database.simpleExecute(`
+                        INSERT INTO show_similarity (show_id1, show_id2, score)
+                        VALUES (:id1, :id2, :score)
+                        ON CONFLICT DO NOTHING
                     `, {
                         id1 : id1,
                         id2 : id2,

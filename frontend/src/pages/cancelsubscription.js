@@ -1,3 +1,4 @@
+import API_BASE_URL from '../config';
 import React, {useState, useContext} from 'react';
 import {FooterContainer} from '../containers/footer';
 import {Form,Header} from '../components';
@@ -18,7 +19,7 @@ export default function CancelSubscription(){
 
         //send data to the backend
         try{
-            const response = await fetch('http://localhost:5000/api/subscription/delete', {
+            const response = await fetch(`${API_BASE_URL}/api/subscription/delete`, {
             method: 'PATCH',
             headers: {
                   'Content-Type' : 'application/json',

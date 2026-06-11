@@ -1,504 +1,361 @@
-const {validationResult} = require('express-validator');
-const HttpError = require('../models/http-error');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const database = require('./../services/database');
-const { query } = require('express');
-const oracledb = require('oracledb');
+const database = require('../services/database');
+const ratingAggregator = require('../services/rating-aggregator');
 
 const getProfile = async (req, res, next) => {
     const email = req.params.email;
 
     try {
         const result = await database.simpleExecute(
-            `SELECT *
-            FROM PROFILE
-            WHERE EMAIL = :email`, {
-                email : email
-            } 
+            'SELECT * FROM profile WHERE email = :email',
+            { email }
         );
-        
-        res.status(200).json({profile: result.rows});
-    } catch (err){
+        res.status(200).json({ profile: result.rows });
+    } catch (err) {
         console.log(err);
-        console.log('Cannot get profile from database');
-        res.status(400).json({message: 'Cannot get profile from database'});
+        res.status(400).json({ message: 'Cannot get profile from database' });
     }
-}
+};
 
 const addProfile = async (req, res, next) => {
-    const { EMAIL,PROFILE_ID, DOB} = req.body;
+    const { EMAIL, PROFILE_ID, DOB } = req.body;
 
     try {
-        database.simpleExecute(
-            `INSERT INTO PROFILE (PROFILE_ID, EMAIL, DOB)
-            VALUES (:pid, :email, :dob)`, {
-                pid: PROFILE_ID,
-                email: EMAIL,
-                dob : DOB
-            }
-        )
-        res.status(201).json({message: 'Successfully created profile'});
-    } catch(err){
+        await database.simpleExecute(
+            'INSERT INTO profile (profile_id, email, dob) VALUES (:pid, :email, :dob)',
+            { pid: PROFILE_ID, email: EMAIL, dob: DOB }
+        );
+        res.status(201).json({ message: 'Successfully created profile' });
+    } catch (err) {
         console.log(err);
-        res.status(400).json({message: 'Failed to add profile to database'});
+        res.status(400).json({ message: 'Failed to add profile to database' });
     }
-
-}
+};
 
 const updateProfile = async (req, res, next) => {
-    const {EMAIL, NAME, DOB} = req.body;
+    const { EMAIL, DOB, PROFILE_ID } = req.body;
 
     try {
-        database.simpleExecute(
-            `UPDATE PROFILE
-            SET NAME = :pname, DOB = :dob
-            WHERE EMAIL = :email`, {
-                pname : EMAIL,
-                dob : DOB,
-                email : EMAIL   
-            }
-        )
-    } catch(err){
+        await database.simpleExecute(
+            'UPDATE profile SET dob = :dob WHERE email = :email AND profile_id = :pid',
+            { dob: DOB, email: EMAIL, pid: PROFILE_ID }
+        );
+        res.status(201).json({ message: 'Successfully updated profile' });
+    } catch (err) {
         console.log(err);
-        res.status(400).json({message: 'Failed to update profile'});
+        res.status(400).json({ message: 'Failed to update profile' });
     }
-}
+};
 
 const deleteProfile = async (req, res, next) => {
-    const {EMAIL, PROFILE_ID} = req.body;
+    const { EMAIL, PROFILE_ID } = req.body;
 
     try {
-        database.simpleExecute(
-            `DELETE PROFILE
-            WHERE PROFILE_ID = :pid AND EMAIL = :email`, {
-                pid : PROFILE_ID,
-                email : EMAIL   
-            }
-        )
-    } catch(err){
+        await database.simpleExecute(
+            'DELETE FROM profile WHERE profile_id = :pid AND email = :email',
+            { pid: PROFILE_ID, email: EMAIL }
+        );
+        res.status(201).json({ message: 'Successfully deleted profile' });
+    } catch (err) {
         console.log(err);
-        res.status(400).json({message: 'Failed to delete profile'});
+        res.status(400).json({ message: 'Failed to delete profile' });
     }
-}
+};
 
 const hasWatchListed = async (req, res, next) => {
-    let {EMAIL, PROFILE_ID, MOVIE_ID, SHOW_ID} = req.body;
+    let { EMAIL, PROFILE_ID, MOVIE_ID, SHOW_ID } = req.body;
     if (!MOVIE_ID) MOVIE_ID = '';
     if (!SHOW_ID) SHOW_ID = '';
 
-    console.log(EMAIL, PROFILE_ID, MOVIE_ID, SHOW_ID);
-
     const query = `
-        (SELECT MOVIE_ID, EMAIL, PROFILE_ID
-        FROM MOVIE_WATCHLIST
-        WHERE EMAIL = :email AND PROFILE_ID = :profile_id 
-        AND MOVIE_ID = :movie_id
-        )
+        (SELECT movie_id, email, profile_id
+         FROM movie_watchlist
+         WHERE email = :email AND profile_id = :profile_id AND movie_id = :movie_id)
         UNION
-        (
-            SELECT SHOW_ID, EMAIL, PROFILE_ID
-            FROM SHOW_WATCHLIST
-            WHERE EMAIL = :email AND PROFILE_ID = :profile_id 
-            AND SHOW_ID = :show_id  
-        )
-    `
+        (SELECT show_id, email, profile_id
+         FROM show_watchlist
+         WHERE email = :email AND profile_id = :profile_id AND show_id = :show_id)
+    `;
+
     try {
         const result = await database.simpleExecute(query, {
-            email : EMAIL,
-            profile_id : PROFILE_ID,
-            movie_id : MOVIE_ID,
-            show_id : SHOW_ID
+            email: EMAIL,
+            profile_id: PROFILE_ID,
+            movie_id: MOVIE_ID,
+            show_id: SHOW_ID,
         });
-
-        // console.log(result);
-
-        if (result.rows.length > 0) message = 'YES';
-        else message = 'NO';
-
-        res.status(200).json({message : message});
-    } catch(err){
+        res.status(200).json({ message: result.rows.length > 0 ? 'YES' : 'NO' });
+    } catch (err) {
         console.log(err);
-        res.status(400).json({message: 'Couldnt get watchlist info'});
+        res.status(400).json({ message: 'Couldnt get watchlist info' });
     }
-
-}
+};
 
 const addToWatchList = async (req, res, next) => {
-    let {EMAIL, PROFILE_ID, MOVIE_ID, SHOW_ID} = req.body;
-    let query;
-    
-    if (!MOVIE_ID) {
-        MOVIE_ID = '';
-        query = `INSERT INTO SHOW_WATCHLIST (SHOW_ID, PROFILE_ID, EMAIL)
-                    VALUES (:show_id, :profile_id, :email)`
-        try {
-            const result = await database.simpleExecute(query, {
-                email : EMAIL,
-                profile_id : PROFILE_ID,
-                show_id : SHOW_ID
-            });
-            res.status(200).json({message : 'added'});
-        } catch(err){
-            console.log(err);
-            res.status(400).json(err);
-        }
+    let { EMAIL, PROFILE_ID, MOVIE_ID, SHOW_ID } = req.body;
 
-    } else {
-        SHOW_ID = '';
-        query = `INSERT INTO MOVIE_WATCHLIST (MOVIE_ID, PROFILE_ID, EMAIL)
-                    VALUES (:movie_id, :profile_id, :email)`
-        try {
-            const result = await database.simpleExecute(query, {
-                email : EMAIL,
-                profile_id : PROFILE_ID,
-                movie_id : MOVIE_ID
-            });
-            res.status(200).json({message : 'added'});
-        } catch(err){
-            console.log(err);
-            res.status(400).json(err);
-        }
-    }
-
-    console.log('adding', EMAIL, PROFILE_ID, MOVIE_ID, SHOW_ID);
-
-}
-
-const deleteWatchList = async(req, res, next) => {
-    const {EMAIL, PROFILE_ID, MOVIE_ID, SHOW_ID} = req.body;
-    let query;
-
-    if (MOVIE_ID){
-        query = `
-        DELETE FROM MOVIE_WATCHLIST
-        WHERE EMAIL = :email AND PROFILE_ID = :profile_id AND MOVIE_ID = :movie_id
-        `;
-        try {
-            const result = await database.simpleExecute(query, {
-                email : EMAIL,
-                profile_id : PROFILE_ID,
-                movie_id : MOVIE_ID
-            });
-            res.status(200).json({message : 'deleted'});
-        } catch(err){
-            console.log(err);
-            res.status(400).json(err);
-        }
-    } else {
-        query = `
-        DELETE FROM SHOW_WATCHLIST
-        WHERE EMAIL = :email AND PROFILE_ID = :profile_id AND SHOW_ID = :show_id
-        `;
-        try {
-            const result = await database.simpleExecute(query, {
-                email : EMAIL,
-                profile_id : PROFILE_ID,
-                show_id : SHOW_ID
-            });
-            res.status(200).json({message : 'deleted'});
-        } catch(err){
-            console.log(err);
-            res.status(400).json(err);
-        }
-    }
-}
-
-const getWatchList = async(req, res, next) => {
-    let query, query1;
-    
-    const {PROFILE_ID, EMAIL} = req.body;
-
-    query = `SELECT MW.MOVIE_ID, M.TITLE, M.DESCRIPTION, M.RATING, M.MATURITY_RATING, M.IMAGE_URL
-    FROM MOVIE_WATCHLIST MW, MOVIE M
-    WHERE MW.MOVIE_ID = M.MOVIE_ID AND
-    EMAIL = :email AND PROFILE_ID = :profile_id`;
-
-    query1 = `SELECT SW.SHOW_ID, S.TITLE, S.DESCRIPTION, S.RATING, S.MATURITY_RATING, S.IMAGE_URL
-    FROM SHOW_WATCHLIST SW, SHOW S
-    WHERE SW.SHOW_ID = S.SHOW_ID AND
-    EMAIL = :email AND PROFILE_ID = :profile_id
-    `
     try {
-        const result = await database.simpleExecute(query, {
-            email : EMAIL,
-            profile_id : PROFILE_ID
-        });
-        
-        const result1 = await database.simpleExecute(query1, {
-            email : EMAIL,
-            profile_id : PROFILE_ID
-        });
-
-        const shows = {
-            title : 'Shows',
-            data : result1.rows
-        };
-
-        const movies = {
-            title: 'Movies',
-            data : result.rows
+        if (!MOVIE_ID) {
+            await database.simpleExecute(
+                'INSERT INTO show_watchlist (show_id, profile_id, email) VALUES (:show_id, :profile_id, :email)',
+                { email: EMAIL, profile_id: PROFILE_ID, show_id: SHOW_ID }
+            );
+        } else {
+            await database.simpleExecute(
+                'INSERT INTO movie_watchlist (movie_id, profile_id, email) VALUES (:movie_id, :profile_id, :email)',
+                { email: EMAIL, profile_id: PROFILE_ID, movie_id: MOVIE_ID }
+            );
         }
-
-        const arr = [shows, movies];
-
-        console.log('getting watchlist for', EMAIL, PROFILE_ID);
-        console.log(arr);
-
-        res.status(200).json({arr});
-
-    } catch(err){
+        res.status(200).json({ message: 'added' });
+    } catch (err) {
         console.log(err);
         res.status(400).json(err);
     }
-}
+};
 
-const addRating = async(req, res, next) => {
-    const {EMAIL, PROFILE_ID, MOVIE_ID, SHOW_ID, RATING} = req.body;
-    let query;
-    if (MOVIE_ID){
-        query = `
-        BEGIN
-            SET_MOVIE_RATING(:movie_id, :email, :profile_id, :rating);
-        END;
-        `
-        try {
-            const result = await database.simpleExecute(query, {
-                movie_id : MOVIE_ID,
-                email : EMAIL,
-                profile_id : PROFILE_ID,
-                rating : RATING
-            });
+const deleteWatchList = async (req, res, next) => {
+    const { EMAIL, PROFILE_ID, MOVIE_ID, SHOW_ID } = req.body;
 
-            res.status(200).json({
-                message : 'Inserted rating'
-            });
-
-        } catch (err){
-            console.log(err);
+    try {
+        if (MOVIE_ID) {
+            await database.simpleExecute(
+                `DELETE FROM movie_watchlist
+                 WHERE email = :email AND profile_id = :profile_id AND movie_id = :movie_id`,
+                { email: EMAIL, profile_id: PROFILE_ID, movie_id: MOVIE_ID }
+            );
+        } else {
+            await database.simpleExecute(
+                `DELETE FROM show_watchlist
+                 WHERE email = :email AND profile_id = :profile_id AND show_id = :show_id`,
+                { email: EMAIL, profile_id: PROFILE_ID, show_id: SHOW_ID }
+            );
         }
+        res.status(200).json({ message: 'deleted' });
+    } catch (err) {
+        console.log(err);
+        res.status(400).json(err);
+    }
+};
+
+const getWatchList = async (req, res, next) => {
+    const { PROFILE_ID, EMAIL } = req.body;
+
+    const query = `
+        SELECT mw.movie_id, m.title, m.description, m.rating, m.maturity_rating, m.image_url
+        FROM movie_watchlist mw
+        JOIN movie m ON mw.movie_id = m.movie_id
+        WHERE mw.email = :email AND mw.profile_id = :profile_id`;
+
+    const query1 = `
+        SELECT sw.show_id, s.title, s.description, s.rating, s.maturity_rating, s.image_url
+        FROM show_watchlist sw
+        JOIN show s ON sw.show_id = s.show_id
+        WHERE sw.email = :email AND sw.profile_id = :profile_id`;
+
+    try {
+        const result = await database.simpleExecute(query, { email: EMAIL, profile_id: PROFILE_ID });
+        const result1 = await database.simpleExecute(query1, { email: EMAIL, profile_id: PROFILE_ID });
+
+        res.status(200).json({
+            arr: [
+                { title: 'Shows', data: result1.rows },
+                { title: 'Movies', data: result.rows },
+            ],
+        });
+    } catch (err) {
+        console.log(err);
+        res.status(400).json(err);
+    }
+};
+
+async function setMovieRating(movieId, email, profileId, rating) {
+    const existing = await database.simpleExecute(
+        `SELECT rating FROM movie_watch
+         WHERE movie_id = :movie_id AND profile_id = :profile_id AND email = :email`,
+        { movie_id: movieId, profile_id: profileId, email }
+    );
+
+    if (existing.rows.length === 0) {
+        await database.simpleExecute(
+            `INSERT INTO movie_watch (movie_id, email, profile_id, rating)
+             VALUES (:movie_id, :email, :profile_id, :rating)`,
+            { movie_id: movieId, email, profile_id: profileId, rating }
+        );
+        await ratingAggregator.updateMovieRatingOnInsert(movieId, rating);
     } else {
-        query = `
-        BEGIN
-            SET_SHOW_RATING(:show_id, :email, :profile_id, :rating);
-        END;
-        `
-        
-        try {
-            const result = await database.simpleExecute(query, {
-                show_id : SHOW_ID,
-                email : EMAIL,
-                profile_id : PROFILE_ID,
-                rating : RATING
-            });
-
-            res.status(200).json({
-                message : 'Inserted rating'
-            });
-
-        } catch (err){
-            console.log(err, 'hello');
-        }
-
+        const oldRating = existing.rows[0].RATING;
+        await database.simpleExecute(
+            `UPDATE movie_watch SET rating = :rating
+             WHERE movie_id = :movie_id AND profile_id = :profile_id AND email = :email`,
+            { movie_id: movieId, email, profile_id: profileId, rating }
+        );
+        await ratingAggregator.updateMovieRatingOnUpdate(movieId, rating, oldRating);
     }
 }
 
-const findRating = async(req, res, next) => {
-    const {EMAIL, PROFILE_ID, MOVIE_ID, SHOW_ID} = req.body;
+async function setShowRating(showId, email, profileId, rating) {
+    const existing = await database.simpleExecute(
+        `SELECT rating FROM show_watch
+         WHERE show_id = :show_id AND profile_id = :profile_id AND email = :email`,
+        { show_id: showId, profile_id: profileId, email }
+    );
 
-    if (MOVIE_ID){
-        try {
-            const result = await database.simpleExecute(`
-                BEGIN
-                    :rating := GET_MOVIE_RATING (:movie_id, :profile_id, :email);
-                END;
-            `, {
-                rating : {dir : oracledb.BIND_OUT, type : oracledb.NUMBER},
-                movie_id : MOVIE_ID,
-                profile_id : PROFILE_ID,
-                email : EMAIL
-            });
-            res.status(200).json(result.outBinds);
-        } catch(err){
-            console.log(err);
-            res.status(400).json({err});
-        }
+    if (existing.rows.length === 0) {
+        await database.simpleExecute(
+            `INSERT INTO show_watch (show_id, email, profile_id, rating)
+             VALUES (:show_id, :email, :profile_id, :rating)`,
+            { show_id: showId, email, profile_id: profileId, rating }
+        );
+        await ratingAggregator.updateShowRatingOnInsert(showId, rating);
     } else {
-        try {
-            const result = await database.simpleExecute(`
-                BEGIN
-                    :rating := GET_SHOW_RATING (:show_id, :profile_id, :email);
-                END;
-            `, {
-                rating : {dir : oracledb.BIND_OUT, type : oracledb.NUMBER},
-                show_id : SHOW_ID,
-                profile_id : PROFILE_ID,
-                email : EMAIL
-            });
-    
-            console.log(result.outBinds);
-    
-            res.status(200).json(result.outBinds);
-        } catch(err){
-            console.log(err);
-            res.status(400).json({err});
-        }
+        const oldRating = existing.rows[0].RATING;
+        await database.simpleExecute(
+            `UPDATE show_watch SET rating = :rating
+             WHERE show_id = :show_id AND profile_id = :profile_id AND email = :email`,
+            { show_id: showId, email, profile_id: profileId, rating }
+        );
+        await ratingAggregator.updateShowRatingOnUpdate(showId, rating, oldRating);
     }
 }
+
+const addRating = async (req, res, next) => {
+    const { EMAIL, PROFILE_ID, MOVIE_ID, SHOW_ID, RATING } = req.body;
+
+    try {
+        if (MOVIE_ID) {
+            await setMovieRating(MOVIE_ID, EMAIL, PROFILE_ID, RATING);
+        } else {
+            await setShowRating(SHOW_ID, EMAIL, PROFILE_ID, RATING);
+        }
+        res.status(200).json({ message: 'Inserted rating' });
+    } catch (err) {
+        console.log(err);
+        res.status(400).json({ message: 'Failed to set rating' });
+    }
+};
+
+const findRating = async (req, res, next) => {
+    const { EMAIL, PROFILE_ID, MOVIE_ID, SHOW_ID } = req.body;
+
+    try {
+        if (MOVIE_ID) {
+            const result = await database.simpleExecute(
+                `SELECT COALESCE(rating, -1) AS rating FROM movie_watch
+                 WHERE movie_id = :movie_id AND profile_id = :profile_id AND email = :email`,
+                { movie_id: MOVIE_ID, profile_id: PROFILE_ID, email: EMAIL }
+            );
+            const rating = result.rows.length ? result.rows[0].RATING : -1;
+            res.status(200).json({ rating });
+        } else {
+            const result = await database.simpleExecute(
+                `SELECT COALESCE(rating, -1) AS rating FROM show_watch
+                 WHERE show_id = :show_id AND profile_id = :profile_id AND email = :email`,
+                { show_id: SHOW_ID, profile_id: PROFILE_ID, email: EMAIL }
+            );
+            const rating = result.rows.length ? result.rows[0].RATING : -1;
+            res.status(200).json({ rating });
+        }
+    } catch (err) {
+        console.log(err);
+        res.status(400).json({ err });
+    }
+};
 
 const getTime = async (req, res, next) => {
-    const {movie_id, profile_id, email, show_id, episode_no, season_no} = req.query;
+    const { movie_id, profile_id, email, show_id, episode_no, season_no } = req.query;
 
-    if (movie_id){
-        try {
-            const result = await database.simpleExecute(`
-                BEGIN
-                    GET_MOVIE_TIMESTAMP(:movie_id, :profile_id, :email, :tm);
-                END;
-            `, {
-                movie_id : movie_id,
-                profile_id, profile_id,
-                email :email,
-                tm : {dir : oracledb.BIND_OUT, type : oracledb.NUMBER}
-            });
-    
-            res.status(200).json({WATCHED_UPTO : result.outBinds.tm});
-        } catch(err){
-            console.log(err);
+    try {
+        if (movie_id) {
+            const result = await database.simpleExecute(
+                `SELECT COALESCE(watched_upto, 0) AS watched_upto FROM movie_watch
+                 WHERE movie_id = :movie_id AND profile_id = :profile_id AND email = :email`,
+                { movie_id, profile_id, email }
+            );
+            const watched = result.rows.length ? result.rows[0].WATCHED_UPTO : 0;
+            res.status(200).json({ WATCHED_UPTO: watched });
+        } else if (show_id) {
+            const result = await database.simpleExecute(
+                `SELECT COALESCE(watched_upto, 0) AS watched_upto FROM episode_watch
+                 WHERE show_id = :show_id AND season_no = :season_no AND episode_no = :episode_no
+                   AND profile_id = :profile_id AND email = :email`,
+                { show_id, season_no, episode_no, profile_id, email }
+            );
+            const watched = result.rows.length ? result.rows[0].WATCHED_UPTO : 0;
+            res.status(200).json({ WATCHED_UPTO: watched });
         }
-    } else if (show_id){
-        try {
-            const result = await database.simpleExecute(`
-                BEGIN
-                    GET_EPISODE_TIMESTAMP(:show_id, :season_no, :episode_no, :profile_id, :email, :tm);
-                END;
-            `, {
-                show_id : show_id,
-                season_no : season_no,
-                episode_no : episode_no,
-                profile_id, profile_id,
-                email :email,
-                tm : {dir : oracledb.BIND_OUT, type : oracledb.NUMBER}
-            });
-    
-            res.status(200).json({WATCHED_UPTO : result.outBinds.tm});
-        } catch(err){
-            console.log(err);
-        }
-    }   
-    
-
-}
+    } catch (err) {
+        console.log(err);
+    }
+};
 
 const setTime = async (req, res, next) => {
-    const {movie_id, show_id, season_no, episode_no, profile_id, email, watched_upto} = req.body;
+    const { movie_id, show_id, season_no, episode_no, profile_id, email, watched_upto } = req.body;
 
-    if (movie_id){
-        try {
-            const result = await database.simpleExecute(`
-                BEGIN
-                    SET_MOVIE_TIMESTAMP(:movie_id, :profile_id, :email, :tm);
-                END;
-            `, {
-                movie_id : movie_id,
-                profile_id, profile_id,
-                email :email,
-                tm : watched_upto
-            });
-    
-    
-            res.status(200).json({message: 'Time saved for movie'});
-        } catch(err){
-            console.log(err);
+    try {
+        if (movie_id) {
+            await database.simpleExecute(
+                `INSERT INTO movie_watch (movie_id, profile_id, email, watched_upto, time)
+                 VALUES (:movie_id, :profile_id, :email, :tm, NOW())
+                 ON CONFLICT (movie_id, email, profile_id)
+                 DO UPDATE SET watched_upto = EXCLUDED.watched_upto, time = NOW()`,
+                { movie_id, profile_id, email, tm: watched_upto }
+            );
+            res.status(200).json({ message: 'Time saved for movie' });
+        } else if (show_id && episode_no && season_no) {
+            await database.simpleExecute(
+                `INSERT INTO episode_watch (show_id, season_no, episode_no, profile_id, email, watched_upto, time)
+                 VALUES (:show_id, :season_no, :episode_no, :profile_id, :email, :tm, NOW())
+                 ON CONFLICT (profile_id, season_no, show_id, episode_no, email)
+                 DO UPDATE SET watched_upto = EXCLUDED.watched_upto, time = NOW()`,
+                { show_id, season_no, episode_no, profile_id, email, tm: watched_upto }
+            );
+            res.status(200).json({ message: 'Time saved for the episode' });
         }
-    } else if (show_id && episode_no && season_no){
-        try {
-            const result = await database.simpleExecute(`
-                BEGIN
-                    SET_EPISODE_TIMESTAMP(:show_id, :season_no, :episode_no, :profile_id, :email, :tm);
-                END;
-            `, {
-                show_id : show_id,
-                season_no : season_no,
-                episode_no : episode_no,
-                profile_id, profile_id,
-                email :email,
-                tm : watched_upto
-            });
-    
-    
-            res.status(200).json({message: 'Time saved for the episode'});
-        } catch(err){
-            console.log(err);
-        }
+    } catch (err) {
+        console.log(err);
     }
-    
-}
+};
 
 const movieContinueWatching = async (req, res, next) => {
     const query = `
-    SELECT M.MOVIE_ID, M.TITLE, M.DESCRIPTION, M.IMAGE_URL, M.VIDEO_URL,  
-    M.RATING, EXTRACT(YEAR FROM M.RELEASE_DATE) as RELEASE_DATE, W.TIME
-    FROM MOVIE_WATCH W, MOVIE M
-    WHERE M.MOVIE_ID = W.MOVIE_ID AND W.EMAIL = :email 
-    AND W.PROFILE_ID = :profile_id AND W.WATCHED_UPTO > 0
-    ORDER BY W.TIME DESC 
-     `
-    const {profile_id, email} = req.query;
+        SELECT m.movie_id, m.title, m.description, m.image_url, m.video_url,
+               m.rating, EXTRACT(YEAR FROM m.release_date) AS release_date, w.time
+        FROM movie_watch w
+        JOIN movie m ON m.movie_id = w.movie_id
+        WHERE w.email = :email AND w.profile_id = :profile_id AND w.watched_upto > 0
+        ORDER BY w.time DESC`;
+    const { profile_id, email } = req.query;
 
-    console.log('Continue Watching ', profile_id, email);
-    
     try {
-        const result = await database.simpleExecute(query, {
-            profile_id : profile_id,
-            email : email
-        });
-
-        res.status(200).json({
-            title: 'Continue Watching',
-            data : result.rows
-        });
-
-    } catch(err){
+        const result = await database.simpleExecute(query, { profile_id, email });
+        res.status(200).json({ title: 'Continue Watching', data: result.rows });
+    } catch (err) {
         console.log(err);
         res.status(400).json(err);
     }
-
-}
+};
 
 const showContinueWatching = async (req, res, next) => {
     const query = `
-    SELECT S.SHOW_ID, S.TITLE, S.IMAGE_URL, S.DESCRIPTION, ROUND(S.RATING, 2) as RATING, EXTRACT (YEAR FROM S.START_DATE) as RELEASE_DATE
-    FROM SHOW S, EPISODE_WATCH EW
-    WHERE S.SHOW_ID = EW.SHOW_ID AND EW.EMAIL = :email AND EW.PROFILE_ID = :profile_id
-    GROUP BY S.SHOW_ID, S.TITLE, S.IMAGE_URL, S.DESCRIPTION, ROUND(S.RATING, 2), EXTRACT (YEAR FROM S.START_DATE)
-    ORDER BY MAX(EW.TIME) DESC
-     `
-    const {profile_id, email, season_no, episode_no} = req.query;
+        SELECT s.show_id, s.title, s.image_url, s.description,
+               ROUND(s.rating::numeric, 2) AS rating,
+               EXTRACT(YEAR FROM s.start_date) AS release_date
+        FROM show s
+        JOIN episode_watch ew ON s.show_id = ew.show_id
+        WHERE ew.email = :email AND ew.profile_id = :profile_id
+        GROUP BY s.show_id, s.title, s.image_url, s.description, s.rating, s.start_date
+        ORDER BY MAX(ew.time) DESC`;
+    const { profile_id, email } = req.query;
 
-    console.log('Continue Watching ', profile_id, email);
-    
     try {
-        const result = await database.simpleExecute(query, {
-            profile_id : profile_id,
-            email : email
-        });
-
-        res.status(200).json({
-            title: 'Continue Watching',
-            data : result.rows
-        });
-
-    } catch(err){
+        const result = await database.simpleExecute(query, { profile_id, email });
+        res.status(200).json({ title: 'Continue Watching', data: result.rows });
+    } catch (err) {
         console.log(err);
         res.status(400).json(err);
     }
-}
+};
 
-const episodeContinueWatching = async (req, res, next) => {
-
-}
-
+const episodeContinueWatching = async (req, res, next) => {};
 
 exports.getProfile = getProfile;
 exports.addProfile = addProfile;

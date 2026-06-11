@@ -1,3 +1,4 @@
+import API_BASE_URL from '../config';
 // import React, { Component } from 'react';
 // import {Header,Profiles} from '../components';
 // import * as ROUTES from '../constants/routes';
@@ -17,7 +18,7 @@
 //     }
     
 //     async componentDidMount(){
-//         const url = `http://localhost:5000/api/profiles/${this.state.email}`;
+//         const url = `${API_BASE_URL}/api/profiles/${this.state.email}`;
 //         const response = await fetch(url);
 //         const data = await response.json();
 //         console.log(data.profile);

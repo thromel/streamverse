@@ -1,3 +1,4 @@
+import API_BASE_URL from '../config';
 import React, {useState, useContext} from 'react';
 import {Form} from '../components';
 import { JumbotronContainer } from '../containers/jumbotron';
@@ -25,7 +26,7 @@ export default function CreateProfile() {
         //send data to the backend
         try{
 
-            const response = await fetch('http://localhost:5000/api/profiles/add', {
+            const response = await fetch(`${API_BASE_URL}/api/profiles/add`, {
             method: 'POST',
             headers: {
                   'Content-Type' : 'application/json',

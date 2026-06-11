@@ -1,3 +1,4 @@
+import API_BASE_URL from '../config';
 import React, {useState, useEffect,useContext}from 'react';
 import { Header, Profiles,Header2 } from '../components';
 import * as ROUTES from '../constants/routes';
@@ -9,7 +10,7 @@ export function SubscriptionHistoryContainer({ email}) {
     //console.log(email);
     async function fetchFromAPI (){
         
-        const url = `http://localhost:5000/api/subscription/history/${email}`;
+        const url = `${API_BASE_URL}/api/subscription/history/${email}`;
         const response = await fetch(url);
         var data = await response.json();
         var temp;

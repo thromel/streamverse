@@ -1,3 +1,4 @@
+import API_BASE_URL from '../config';
 import React, {useState, useEffect,useContext}from 'react';
 import {Form,Header } from '../components';
 import * as ROUTES from '../constants/routes';
@@ -22,7 +23,7 @@ export function AddSubscriptionContainer({ Email }) {
     async function fetchFromAPI (){
         console.log('Hello!');
         
-        const url = `http://localhost:5000/api/subscription/plans`;
+        const url = `${API_BASE_URL}/api/subscription/plans`;
         const response = await fetch(url);
         const data = await response.json();
     
@@ -63,7 +64,7 @@ export function AddSubscriptionContainer({ Email }) {
 
         //send data to the backend
         try{
-            const response = await fetch('http://localhost:5000/api/subscription/add', {
+            const response = await fetch(`${API_BASE_URL}/api/subscription/add`, {
             method: 'POST',
             headers: {
                   'Content-Type' : 'application/json',
@@ -93,7 +94,7 @@ export function AddSubscriptionContainer({ Email }) {
             console.log("after submit data in subscribe",responseData);
 
             if (response.status === 201){
-                const url = `http://localhost:5000/api/subscription/subid/${email}`;
+                const url = `${API_BASE_URL}/api/subscription/subid/${email}`;
                 const response = await fetch(url);
                 var data = await response.json();
                 data = data["sub_id"]["SUB_ID"];

@@ -1,3 +1,4 @@
+import API_BASE_URL from '../config';
 import React, {useState, useEffect,useContext}from 'react';
 import { Header, Profiles } from '../components';
 import * as ROUTES from '../constants/routes';
@@ -12,7 +13,7 @@ export function SelectProfileContainer({ email, setProfile, setCategory }) {
     async function fetchFromAPI (){
         console.log('Hello!');
         
-        const url = `http://localhost:5000/api/profiles/${email}`;
+        const url = `${API_BASE_URL}/api/profiles/${email}`;
         const response = await fetch(url);
         const data = await response.json();
         console.log(data);

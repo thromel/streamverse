@@ -1,322 +1,239 @@
-const {validationResult, Result} = require('express-validator');
+const { validationResult } = require('express-validator');
 const HttpError = require('../models/http-error');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const database = require('./../services/database');
+const database = require('../services/database');
+const config = require('../config');
 
 const getUsers = async (req, res, next) => {
-    
     try {
-        const result = await database.simpleExecute(`SELECT * FROM USER_NETFLIX`);
-        
-        res.status(200).json({users: result.rows});
-    } catch (err){
+        const result = await database.simpleExecute('SELECT * FROM user_netflix');
+        res.status(200).json({ users: result.rows });
+    } catch (err) {
         console.log(err);
     }
-}
+};
 
 const signup = async (req, res, next) => {
     const errors = validationResult(req);
-    if(!errors.isEmpty()){
-        console.log(errors);
-        res.status(422);
+    if (!errors.isEmpty()) {
         const error = new HttpError('Invalid Input', 422);
         return next(error);
     }
-    
-    let {NAME, EMAIL, DOB, COUNTRY, CREDIT_CARD, PASSWORD, PHONE} = req.body;
-    
-    try {
-        
 
+    let { NAME, EMAIL, DOB, COUNTRY, CREDIT_CARD, PASSWORD, PHONE } = req.body;
+
+    try {
         const hasUser = await database.simpleExecute(
-            `SELECT * 
-            FROM USER_NETFLIX
-            WHERE EMAIL = :email`, {
-            email : EMAIL
-            }
+            'SELECT * FROM user_netflix WHERE email = :email',
+            { email: EMAIL }
         );
 
         if (hasUser.rows.length !== 0) {
-            const error = new HttpError(
-                'User exists already, please login instead.',
-                423
-            );
-            return next (error);
+            return next(new HttpError('User exists already, please login instead.', 423));
         }
-
-
     } catch (err) {
         console.log(err);
     }
 
     try {
-        //Hashes the password
         PASSWORD = await bcrypt.hash(PASSWORD, 12);
 
-        //Inserts the newUser to database
-        
         await database.simpleExecute(
-            `INSERT INTO USER_NETFLIX (NAME, PASSWORD, EMAIL, DOB, COUNTRY, CREDIT_CARD, PHONE)
-            VALUES (:uname, :pw, :email, :dob, :cid, :cred, :phone)`, {
-                uname : NAME,
-                pw : PASSWORD,
-                email : EMAIL,
-                dob : DOB, 
-                cid: COUNTRY, 
+            `INSERT INTO user_netflix (name, password, email, dob, country, credit_card, phone)
+             VALUES (:uname, :pw, :email, :dob, :cid, :cred, :phone)`,
+            {
+                uname: NAME,
+                pw: PASSWORD,
+                email: EMAIL,
+                dob: DOB,
+                cid: COUNTRY,
                 cred: CREDIT_CARD,
-                phone : PHONE
+                phone: PHONE,
             }
         );
-        
-        
-        //Generates token for successful user login
-        //Which is used to authorize
-        //Expires in 1hr
 
-        let token;
-        token = jwt.sign(
-            {EMAIL}, 
-            'supersecret_dont_share',
-             {expiresIn : '1h'}
-             );
-        
-        res.status(201).json({EMAIL, token});
-    } catch(err){
-        const error = new HttpError(err, 424);
-        next(error);
+        const token = jwt.sign({ EMAIL }, config.jwtSecret, { expiresIn: '1h' });
+        res.status(201).json({ EMAIL, token });
+    } catch (err) {
         console.log(err);
+        return next(new HttpError(err.message || 'Signup failed', 424));
     }
-
-    
-}
+};
 
 const login = async (req, res, next) => {
-    let {EMAIL, PASSWORD} = req.body;
+    const { EMAIL, PASSWORD } = req.body;
 
     const identifiedUser = await database.simpleExecute(
-        `SELECT PASSWORD
-        FROM USER_NETFLIX
-        WHERE EMAIL = :email`, {
-            email : EMAIL
-        }
+        'SELECT password FROM user_netflix WHERE email = :email',
+        { email: EMAIL }
     );
 
-    if (identifiedUser && identifiedUser.rows.length === 0) {
-        const error = new HttpError(
-            'User does not exist. Please sign up instead',
-            422
-        );
-        return next (error);
+    if (!identifiedUser || identifiedUser.rows.length === 0) {
+        return next(new HttpError('User does not exist. Please sign up instead', 422));
     }
-   
-    const {PASSWORD : hashedPassword} = identifiedUser.rows[0];
+
+    const { PASSWORD: hashedPassword } = identifiedUser.rows[0];
     if (await bcrypt.compare(PASSWORD, hashedPassword)) {
-        let token;
-        token = jwt.sign(
-            {EMAIL}, 
-            'supersecret_dont_share',
-             {expiresIn : '1h'}
-             );
-        
-        res.status(201).json({EMAIL, token});
-        
+        const token = jwt.sign({ EMAIL }, config.jwtSecret, { expiresIn: '1h' });
+        res.status(201).json({ EMAIL, token });
     } else {
-        const error = new HttpError(
-            'Incorrect Password',
-            423
-        );
-        return next (error);
-    } 
-    
-}
+        return next(new HttpError('Incorrect Password', 423));
+    }
+};
 
 const getMaxProfiles = async (req, res, next) => {
     const EMAIL = req.params.email;
     try {
-        const result = await database.simpleExecute(`
-        SELECT MAX_PROFILES
-         FROM USER_NETFLIX
-         WHERE EMAIL = :email`,{
-             email : EMAIL
-         });
-        
-        res.status(200).json({mp: result.rows[0]});
-    } catch (err){
+        const result = await database.simpleExecute(
+            'SELECT max_profiles FROM user_netflix WHERE email = :email',
+            { email: EMAIL }
+        );
+        res.status(200).json({ mp: result.rows[0] });
+    } catch (err) {
         console.log(err);
     }
-}
+};
 
 const updatePhone = async (req, res, next) => {
-    const {EMAIL,Phone} = req.body;
+    const { EMAIL, Phone } = req.body;
     try {
-        const result = await database.simpleExecute(`
-        UPDATE USER_NETFLIX
-        SET PHONE = :phone
-        WHERE EMAIL = :email`,{
-             email : EMAIL,
-             phone : Phone
-         });
-        
-         res.status(201).json({message: 'Successfully updated phone'});
-    } catch (err){
+        await database.simpleExecute(
+            'UPDATE user_netflix SET phone = :phone WHERE email = :email',
+            { email: EMAIL, phone: Phone }
+        );
+        res.status(201).json({ message: 'Successfully updated phone' });
+    } catch (err) {
         console.log(err);
     }
-}
+};
 
 const getPhone = async (req, res, next) => {
     const EMAIL = req.params.email;
     try {
-        const result = await database.simpleExecute(`
-        SELECT PHONE FROM USER_NETFLIX
-        WHERE EMAIL = :email`,{
-             email : EMAIL
-         });
-        
-         res.status(200).json({phone: result.rows[0]});
-    } catch (err){
+        const result = await database.simpleExecute(
+            'SELECT phone FROM user_netflix WHERE email = :email',
+            { email: EMAIL }
+        );
+        res.status(200).json({ phone: result.rows[0] });
+    } catch (err) {
         console.log(err);
     }
-}
+};
 
 const updatePassword = async (req, res, next) => {
-    const {EMAIL,OLD_PASS,NEW_PASS,NEW_PASS_CON} = req.body;
-    
-    if(NEW_PASS!==NEW_PASS_CON){
-        const error = new HttpError(
-            'New passwords don\'t match',
-            422
-        );
-        return next (error);
-    }
-    else{
-        try {
-            const result = await database.simpleExecute(`
-            SELECT PASSWORD FROM USER_NETFLIX
-            WHERE EMAIL = :email`,{
-                 email : EMAIL
-             });
-             console.log("result here",result.rows[0]);
-             const {PASSWORD : hashedPassword} = result.rows[0];
-            if (await bcrypt.compare(OLD_PASS, hashedPassword)) {
-                
-                const PASSWORD2 = await bcrypt.hash(NEW_PASS, 12);
-                const result2 = await database.simpleExecute(`
-                UPDATE USER_NETFLIX
-                SET PASSWORD = :pw
-                WHERE EMAIL = :email`,{
-                    email : EMAIL,
-                    pw : PASSWORD2
-                });
+    const { EMAIL, OLD_PASS, NEW_PASS, NEW_PASS_CON } = req.body;
 
-                res.status(201).json({message : 'password updated successfully'});
-            } else {
-                const error = new HttpError(
-                    'Incorrect Password',
-                    423
-                );
-                return next (error);
-            }
-        } catch (err){
-            console.log(err);
-        }
+    if (NEW_PASS !== NEW_PASS_CON) {
+        return next(new HttpError("New passwords don't match", 422));
     }
-}
+
+    try {
+        const result = await database.simpleExecute(
+            'SELECT password FROM user_netflix WHERE email = :email',
+            { email: EMAIL }
+        );
+        const { PASSWORD: hashedPassword } = result.rows[0];
+        if (await bcrypt.compare(OLD_PASS, hashedPassword)) {
+            const PASSWORD2 = await bcrypt.hash(NEW_PASS, 12);
+            await database.simpleExecute(
+                'UPDATE user_netflix SET password = :pw WHERE email = :email',
+                { email: EMAIL, pw: PASSWORD2 }
+            );
+            res.status(201).json({ message: 'password updated successfully' });
+        } else {
+            return next(new HttpError('Incorrect Password', 423));
+        }
+    } catch (err) {
+        console.log(err);
+    }
+};
 
 const getMovieWatchHistory = async (req, res, next) => {
     const EMAIL = req.params.email;
     const PROF_ID = req.params.prof_id;
     try {
-        const result = await database.simpleExecute(`
-        SELECT MW.RATING,MW.WATCHED_UPTO,M.TITLE,MW.TIME,M.IMAGE_URL
-        FROM MOVIE_WATCH MW
-        JOIN MOVIE M ON M.MOVIE_ID=MW.MOVIE_ID
-        WHERE MW.EMAIL = :email AND MW.PROFILE_ID = :prof_id
-        ORDER BY MW.TIME DESC`,{
-             email : EMAIL,
-             prof_id : PROF_ID
-         });
-        
-        res.status(200).json({history: result.rows});
-    } catch (err){
+        const result = await database.simpleExecute(
+            `SELECT mw.rating, mw.watched_upto, m.title, mw.time, m.image_url
+             FROM movie_watch mw
+             JOIN movie m ON m.movie_id = mw.movie_id
+             WHERE mw.email = :email AND mw.profile_id = :prof_id
+             ORDER BY mw.time DESC`,
+            { email: EMAIL, prof_id: PROF_ID }
+        );
+        res.status(200).json({ history: result.rows });
+    } catch (err) {
         console.log(err);
     }
-}
+};
 
 const getMovieWatchHistory2 = async (req, res, next) => {
     const EMAIL = req.params.email;
     try {
-        const result = await database.simpleExecute(`
-        SELECT MW.RATING,MW.WATCHED_UPTO,M.TITLE,MW.TIME,M.IMAGE_URL,MW.PROFILE_ID PID
-        FROM MOVIE_WATCH MW
-        JOIN MOVIE M ON M.MOVIE_ID=MW.MOVIE_ID
-        WHERE MW.EMAIL = :email 
-        ORDER BY MW.TIME DESC`,{
-             email : EMAIL
-         });
-        
-        res.status(200).json({history: result.rows});
-    } catch (err){
+        const result = await database.simpleExecute(
+            `SELECT mw.rating, mw.watched_upto, m.title, mw.time, m.image_url, mw.profile_id AS pid
+             FROM movie_watch mw
+             JOIN movie m ON m.movie_id = mw.movie_id
+             WHERE mw.email = :email
+             ORDER BY mw.time DESC`,
+            { email: EMAIL }
+        );
+        res.status(200).json({ history: result.rows });
+    } catch (err) {
         console.log(err);
     }
-}
+};
 
 const getShowWatchHistory = async (req, res, next) => {
     const EMAIL = req.params.email;
     const PROF_ID = req.params.prof_id;
     try {
-        const result = await database.simpleExecute(`
-        SELECT S.TITLE,S.RATING,E.SEASON_NO,E.EPISODE_NO,E.WATCHED_UPTO
-        FROM EPISODE_WATCH E
-        JOIN SHOW S ON S.SHOW_ID = E.SHOW_ID 
-        WHERE E.EMAIL =  :email AND E.PROFILE_ID = :prof_id`,{
-             email : EMAIL,
-             prof_id : PROF_ID
-         });
-        
-        res.status(200).json({history: result.rows});
-    } catch (err){
+        const result = await database.simpleExecute(
+            `SELECT s.title, s.rating, e.season_no, e.episode_no, e.watched_upto
+             FROM episode_watch e
+             JOIN show s ON s.show_id = e.show_id
+             WHERE e.email = :email AND e.profile_id = :prof_id`,
+            { email: EMAIL, prof_id: PROF_ID }
+        );
+        res.status(200).json({ history: result.rows });
+    } catch (err) {
         console.log(err);
     }
-}
+};
 
 const getShowWatchHistory2 = async (req, res, next) => {
     const EMAIL = req.params.email;
     try {
-        const result = await database.simpleExecute(`
-        SELECT S.TITLE,S.RATING,E.SEASON_NO,E.EPISODE_NO,E.WATCHED_UPTO,E.PROFILE_ID PID
-        FROM EPISODE_WATCH E
-        JOIN SHOW S ON S.SHOW_ID = E.SHOW_ID 
-        WHERE E.EMAIL =  :email`,{
-             email : EMAIL
-         });
-        
-        res.status(200).json({history: result.rows});
-    } catch (err){
+        const result = await database.simpleExecute(
+            `SELECT s.title, s.rating, e.season_no, e.episode_no, e.watched_upto, e.profile_id AS pid
+             FROM episode_watch e
+             JOIN show s ON s.show_id = e.show_id
+             WHERE e.email = :email`,
+            { email: EMAIL }
+        );
+        res.status(200).json({ history: result.rows });
+    } catch (err) {
         console.log(err);
     }
-}
+};
 
 const getNumProfiles = async (req, res, next) => {
     const EMAIL = req.params.email;
     try {
-        const result = await database.simpleExecute(`
-        SELECT COUNT(*) C 
-         FROM PROFILE
-         WHERE EMAIL = :email`,{
-             email : EMAIL
-         });
-        
-        res.status(200).json({C: result.rows[0]});
-    } catch (err){
+        const result = await database.simpleExecute(
+            'SELECT COUNT(*) AS c FROM profile WHERE email = :email',
+            { email: EMAIL }
+        );
+        res.status(200).json({ C: result.rows[0] });
+    } catch (err) {
         console.log(err);
     }
-}
+};
 
 exports.getUsers = getUsers;
 exports.signup = signup;
 exports.login = login;
-exports.getMaxProfiles = getMaxProfiles; 
+exports.getMaxProfiles = getMaxProfiles;
 exports.updatePhone = updatePhone;
 exports.getPhone = getPhone;
 exports.updatePassword = updatePassword;

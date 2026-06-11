@@ -1,3 +1,4 @@
+import API_BASE_URL from '../config';
 import React, { useState, useEffect, useContext, Component } from 'react';
 import { Card, Header, Loading, Player } from '../components';
 import * as ROUTES from '../constants/routes';
@@ -27,7 +28,7 @@ export function BrowseContainer({ slides }) {
         const searchKey = keyword.split(':');
         let response;
         if ((searchKey.length - 1) % 2 === 0 ){
-            response = await fetch('http://localhost:5000/api/browse/search', {
+            response = await fetch(`${API_BASE_URL}/api/browse/search`, {
             method: 'POST',
             headers: {
                 'Content-Type' : 'application/json',
@@ -47,7 +48,7 @@ export function BrowseContainer({ slides }) {
     async function getWatchList(){
       
       try {
-        const response = await fetch('http://localhost:5000/api/profiles/watchlist/get', {
+        const response = await fetch(`${API_BASE_URL}/api/profiles/watchlist/get`, {
           method: 'POST',
           headers: {
                 'Content-Type' : 'application/json',
@@ -70,7 +71,7 @@ export function BrowseContainer({ slides }) {
     }
 
     async function getSuggestions(event){
-      const response = await fetch(`http://localhost:5000/api/browse/suggestions/?email=${auth.email}&profile_id=${auth.profile}`);
+      const response = await fetch(`${API_BASE_URL}/api/browse/suggestions/?email=${auth.email}&profile_id=${auth.profile}`);
       const responseData = await response.json();
       console.log('Getting response data. . .');
       setSlideRows(responseData);
@@ -87,13 +88,13 @@ export function BrowseContainer({ slides }) {
 
     async function getLastWatched(){
       if (category === 'films'){
-        const response = await fetch(`http://localhost:5000/api/profiles/movie/continue/?profile_id=${profile.PROFILE_ID}&email=${auth.email}`);
+        const response = await fetch(`${API_BASE_URL}/api/profiles/movie/continue/?profile_id=${profile.PROFILE_ID}&email=${auth.email}`);
         const responseData = await response.json();
         console.log(responseData);
         if (slides[category][0].title !== 'Continue Watching') slides[category].unshift(responseData);
         slides[category][0] = responseData;
       } else if (category === 'series'){
-        const response = await fetch(`http://localhost:5000/api/profiles/show/continue/?profile_id=${profile.PROFILE_ID}&email=${auth.email}`);
+        const response = await fetch(`${API_BASE_URL}/api/profiles/show/continue/?profile_id=${profile.PROFILE_ID}&email=${auth.email}`);
         const responseData = await response.json();
         console.log(responseData);
         if (slides[category][0].title !== 'Continue Watching') slides[category].unshift(responseData);
@@ -102,7 +103,7 @@ export function BrowseContainer({ slides }) {
     }
 
     async function getNew (event){
-      const response = await fetch(`http://localhost:5000/api/browse/new/?email=${auth.email}`);
+      const response = await fetch(`${API_BASE_URL}/api/browse/new/?email=${auth.email}`);
       const responseData = await response.json();
       setSlideRows(responseData);
     }

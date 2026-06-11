@@ -1,3 +1,4 @@
+import API_BASE_URL from '../config';
 import React, {useContext, useState} from 'react';
 import logo from '../logo.svg';
 import {FooterContainer} from '../containers/footer';
@@ -23,7 +24,7 @@ export default function UpdatePassword() {
         //send data to backend
         try{
             console.log(oldpassword,newpassword,newpasswordcon);
-            const response = await fetch('http://localhost:5000/api/users/updatepassword', {
+            const response = await fetch(`${API_BASE_URL}/api/users/updatepassword`, {
             method: 'PATCH',
             headers: {
                   'Content-Type' : 'application/json',

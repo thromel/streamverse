@@ -23,7 +23,7 @@ router.get('/history/:email', subscriptionController.getHistory);
 
 router.get('/getenddate/:email', subscriptionController.getEndDate);
 
-router.post('/update', subscriptionController.addSubscription);
+router.post('/update', subscriptionController.updateSubscription);
 
 router.patch('/delete', subscriptionController.deleteSubscription);
 

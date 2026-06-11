@@ -1,3 +1,4 @@
+import API_BASE_URL from '../config';
 import React, {useState, useEffect,useContext}from 'react';
 import { Form, Header } from '../components';
 import * as ROUTES from '../constants/routes';
@@ -30,7 +31,7 @@ export function DeleteProfileContainer({ email }) {
     async function fetchFromAPI (){
         console.log('Hello!');
         
-        const url = `http://localhost:5000/api/profiles/${Email}`;
+        const url = `${API_BASE_URL}/api/profiles/${Email}`;
         const response = await fetch(url);
         const data = await response.json();
         console.log(data);
@@ -47,7 +48,7 @@ export function DeleteProfileContainer({ email }) {
     const handleDeleteProfile = async event =>{
         
         try{
-            const response = await fetch('http://localhost:5000/api/profiles/delete', {
+            const response = await fetch(`${API_BASE_URL}/api/profiles/delete`, {
             method: 'DELETE',
             headers: {
                     'Content-Type' : 'application/json',

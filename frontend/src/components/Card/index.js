@@ -1,3 +1,4 @@
+import API_BASE_URL from 'config';
 import React, { useState, useContext, createContext, useEffect } from 'react';
 import {AuthContext} from '../../context/auth-context';
 import AddIcon from '@material-ui/icons/Add';
@@ -117,7 +118,7 @@ Card.Feature = function CardFeature({ children, category, setCategory, setSlideR
 
     // console.log(body);
       try {
-        const response = await fetch('http://localhost:5000/api/profiles/watchlist/find', {
+        const response = await fetch(`${API_BASE_URL}/api/profiles/watchlist/find`, {
           method: 'POST',
           headers: {
                 'Content-Type' : 'application/json',
@@ -146,7 +147,7 @@ Card.Feature = function CardFeature({ children, category, setCategory, setSlideR
   
 
   async function postWatchInfo(event){
-    const response = await fetch('http://localhost:5000/api/profiles/watchlist/add', {
+    const response = await fetch(`${API_BASE_URL}/api/profiles/watchlist/add`, {
         method: 'POST',
         headers: {
               'Content-Type' : 'application/json',
@@ -164,7 +165,7 @@ Card.Feature = function CardFeature({ children, category, setCategory, setSlideR
 
   async function ratingHandler (event, rating){
     try {
-      const response = await fetch('http://localhost:5000/api/profiles/rating/add', {
+      const response = await fetch(`${API_BASE_URL}/api/profiles/rating/add`, {
         method: 'POST',
         headers: {
               'Content-Type' : 'application/json',
@@ -187,7 +188,7 @@ Card.Feature = function CardFeature({ children, category, setCategory, setSlideR
 
   async function getRating(){
     try {
-      const response = await fetch('http://localhost:5000/api/profiles/rating/find', {
+      const response = await fetch(`${API_BASE_URL}/api/profiles/rating/find`, {
         method: 'POST',
         headers: {
               'Content-Type' : 'application/json',
@@ -216,7 +217,7 @@ Card.Feature = function CardFeature({ children, category, setCategory, setSlideR
 
 
   async function deleteFromWatchList (){
-    const response = await fetch('http://localhost:5000/api/profiles/watchlist/delete', {
+    const response = await fetch(`${API_BASE_URL}/api/profiles/watchlist/delete`, {
         method: 'DELETE',
         headers: {
               'Content-Type' : 'application/json',
@@ -234,7 +235,7 @@ Card.Feature = function CardFeature({ children, category, setCategory, setSlideR
 
   async function getEpisodes(){
     try{
-      const response = await fetch(`http://localhost:5000/api/browse/show/episodes/?show_id=${itemFeature.SHOW_ID}&profile_id=${auth.profile}&email=${auth.email}`);
+      const response = await fetch(`${API_BASE_URL}/api/browse/show/episodes/?show_id=${itemFeature.SHOW_ID}&profile_id=${auth.profile}&email=${auth.email}`);
       const responseData = await response.json();
       setSlideRows(responseData);
     } catch(err){
@@ -247,8 +248,8 @@ Card.Feature = function CardFeature({ children, category, setCategory, setSlideR
   async function getGenre(){
     try {
       let response;
-      if (itemFeature.MOVIE_ID ) response = await fetch(`http://localhost:5000/api/browse/genre/?movie_id=${itemFeature.MOVIE_ID}`);
-      else if (itemFeature.SHOW_ID) response = await fetch(`http://localhost:5000/api/browse/genre/?show_id=${itemFeature.SHOW_ID}`);
+      if (itemFeature.MOVIE_ID ) response = await fetch(`${API_BASE_URL}/api/browse/genre/?movie_id=${itemFeature.MOVIE_ID}`);
+      else if (itemFeature.SHOW_ID) response = await fetch(`${API_BASE_URL}/api/browse/genre/?show_id=${itemFeature.SHOW_ID}`);
       const responseData = await response.json();
      if (response.status === 200) {
        setGenres(responseData);
@@ -263,8 +264,8 @@ Card.Feature = function CardFeature({ children, category, setCategory, setSlideR
   async function getCeleb (){
     try {
       let response;
-      if (itemFeature.MOVIE_ID ) response = await fetch(`http://localhost:5000/api/browse/celeb/?movie_id=${itemFeature.MOVIE_ID}`);
-      else if (itemFeature.SHOW_ID) response = await fetch(`http://localhost:5000/api/browse/celeb/?show_id=${itemFeature.SHOW_ID}`);
+      if (itemFeature.MOVIE_ID ) response = await fetch(`${API_BASE_URL}/api/browse/celeb/?movie_id=${itemFeature.MOVIE_ID}`);
+      else if (itemFeature.SHOW_ID) response = await fetch(`${API_BASE_URL}/api/browse/celeb/?show_id=${itemFeature.SHOW_ID}`);
       const responseData = await response.json();
      if (response.status === 200) {
        setCelebs(responseData);
@@ -279,8 +280,8 @@ Card.Feature = function CardFeature({ children, category, setCategory, setSlideR
   async function getSimilar(){
     try {
       let response;
-      if (itemFeature.MOVIE_ID ) response = await fetch(`http://localhost:5000/api/browse/similar/?movie_id=${itemFeature.MOVIE_ID}`);
-      else if (itemFeature.SHOW_ID) response = await fetch(`http://localhost:5000/api/browse/similar/?show_id=${itemFeature.SHOW_ID}`);
+      if (itemFeature.MOVIE_ID ) response = await fetch(`${API_BASE_URL}/api/browse/similar/?movie_id=${itemFeature.MOVIE_ID}`);
+      else if (itemFeature.SHOW_ID) response = await fetch(`${API_BASE_URL}/api/browse/similar/?show_id=${itemFeature.SHOW_ID}`);
       const responseData = await response.json();
      if (response.status === 200) setSlideRows(responseData);
     } catch(err){

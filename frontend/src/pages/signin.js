@@ -1,3 +1,4 @@
+import API_BASE_URL from '../config';
 import React, {useContext, useState} from 'react';
 import {HeaderContainer} from '../containers/header';
 import {FooterContainer} from '../containers/footer';
@@ -22,7 +23,7 @@ export default function SignIn() {
         
         //send data to backend
         try{
-            const response = await fetch('http://localhost:5000/api/users/login', {
+            const response = await fetch(`${API_BASE_URL}/api/users/login`, {
             method: 'POST',
             headers: {
                   'Content-Type' : 'application/json',
@@ -43,14 +44,14 @@ export default function SignIn() {
                   console.log(auth.email);
                   
                   //getting max_num of profiles of the user
-                  const u = `http://localhost:5000/api/users/maxprofiles/${emailAddress}`;
+                  const u = `${API_BASE_URL}/api/users/maxprofiles/${emailAddress}`;
                   const r = await fetch(u);
                   var d = await r.json();
                   d= d["mp"]["MAX_PROFILES"];
                   console.log("Maximum profiles ",d);
                   auth.set_max_profiles(d);
 
-                  const u2 = `http://localhost:5000/api/users/numprofiles/${emailAddress}`;
+                  const u2 = `${API_BASE_URL}/api/users/numprofiles/${emailAddress}`;
                   const r2 = await fetch(u2);
                   var d2 = await r2.json();
                   var np=d2["C"].C;
@@ -59,7 +60,7 @@ export default function SignIn() {
                   
 
                   //getting the sub id of the user
-                  const url = `http://localhost:5000/api/subscription/subid/${emailAddress}`;
+                  const url = `${API_BASE_URL}/api/subscription/subid/${emailAddress}`;
                   const response = await fetch(url);
                   var data = await response.json();
                   console.log(data);
@@ -70,7 +71,7 @@ export default function SignIn() {
                     if(subid){
                         auth.set_sub_id(subid);//adding sub id to auth context
 
-                        const url3 = `http://localhost:5000/api/subscription/bill/${subid}`;
+                        const url3 = `${API_BASE_URL}/api/subscription/bill/${subid}`;
                         const response3 = await fetch(url3);         
                         Bill = await response3.json(); 
                         Bill = Bill["bill"]["BILL"];
@@ -142,7 +143,7 @@ export default function SignIn() {
 /*  if(subid){
     //add sub id to auth context
     auth.set_sub_id(sudid);
-    const url2= `http://localhost:5000/api/subscription/isvalid/${subid}`;
+    const url2= `${API_BASE_URL}/api/subscription/isvalid/${subid}`;
     const response2 = await fetch(url);
     valid_sub = await response.json();
     valid_sub =  valid_sub["VALID"];
@@ -166,13 +167,13 @@ if(data["sub_id"]){
                     console.log(subid);
                     if(subid){
                       auth.set_sub_id(subid);//adding sub id to auth context
-                      const url2= `http://localhost:5000/api/subscription/isvalid/${subid}`;
+                      const url2= `${API_BASE_URL}/api/subscription/isvalid/${subid}`;
                       const response2 = await fetch(url2);
                       valid_sub = await response2.json();
                       valid_sub= valid_sub["VALID"];
                       if(valid_sub){
 
-                        const url3 = `http://localhost:5000/api/subscription/bill/${subid}`;
+                        const url3 = `${API_BASE_URL}/api/subscription/bill/${subid}`;
                         const response3 = await fetch(url3);         
                         Bill = await response3.json(); 
                         Bill = Bill["bill"]["BILL"];
