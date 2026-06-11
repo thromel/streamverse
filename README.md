@@ -4,7 +4,7 @@ A Netflix-style streaming app built with React, Express, and PostgreSQL.
 
 ## Prerequisites
 
-- Node.js 18+ (Node 17+ needs the OpenSSL legacy provider for the frontend — already configured)
+- Node.js 18 LTS recommended (`.nvmrc` provided; Node 17+ needs the OpenSSL legacy provider for the frontend — already configured)
 - Docker Desktop (for PostgreSQL)
 
 ## Quick Start
@@ -13,6 +13,7 @@ A Netflix-style streaming app built with React, Express, and PostgreSQL.
 
 ```bash
 docker compose up -d
+# or from repo root: npm run setup   (starts DB + seeds)
 ```
 
 This starts Postgres 16 on port `5432` and auto-applies the schema from `db/init/01-schema.sql`.
@@ -78,6 +79,14 @@ streamverse/
 | `/api/profiles` | Profile CRUD, watchlist, ratings, playback |
 | `/api/browse` | Movies, shows, search, recommendations |
 | `/api/subscription` | Plans, billing, subscription management |
+
+## Smoke Test
+
+With the backend running:
+
+```bash
+cd backend && npm run smoke
+```
 
 ## Optional: Load TMDB Data
 

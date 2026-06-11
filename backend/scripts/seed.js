@@ -233,6 +233,27 @@ async function main() {
         );
     });
 
+    // Stub episode rows required by episode_watch FK (no EPISODE.json in backup)
+    const episodeWatchRows = loadJson('EPISODE_WATCH.json');
+    const episodeKeys = new Set();
+    for (const r of episodeWatchRows) {
+        const key = `${r.SHOW_ID}:${r.SEASON_NO}:${r.EPISODE_NO}`;
+        if (episodeKeys.has(key)) continue;
+        episodeKeys.add(key);
+        await database.simpleExecute(
+            `INSERT INTO episode (season_no, episode_no, show_id, title, description)
+             VALUES (:season_no, :episode_no, :show_id, :title, :description)
+             ON CONFLICT DO NOTHING`,
+            {
+                season_no: num(r.SEASON_NO),
+                episode_no: num(r.EPISODE_NO),
+                show_id: num(r.SHOW_ID),
+                title: `Episode ${r.EPISODE_NO}`,
+                description: 'Seeded placeholder episode',
+            }
+        );
+    }
+
     await seedTable('SHOW_WATCH', async (r) => {
         await database.simpleExecute(
             `INSERT INTO show_watch (profile_id, email, show_id, rating, status, watched_upto, time)
@@ -251,25 +272,21 @@ async function main() {
     });
 
     await seedTable('EPISODE_WATCH', async (r) => {
-        try {
-            await database.simpleExecute(
-                `INSERT INTO episode_watch (profile_id, email, season_no, episode_no, show_id, status, watched_upto, time)
-                 VALUES (:profile_id, :email, :season_no, :episode_no, :show_id, :status, :watched_upto, :time)
-                 ON CONFLICT DO NOTHING`,
-                {
-                    profile_id: str(r.PROFILE_ID),
-                    email: str(r.EMAIL),
-                    season_no: num(r.SEASON_NO),
-                    episode_no: num(r.EPISODE_NO),
-                    show_id: num(r.SHOW_ID),
-                    status: str(r.STATUS),
-                    watched_upto: num(r.WATCHED_UPTO, 0),
-                    time: parseDate(r.TIME) || new Date(),
-                }
-            );
-        } catch (err) {
-            console.warn(`Skipped episode_watch row (missing episode FK?): ${err.message}`);
-        }
+        await database.simpleExecute(
+            `INSERT INTO episode_watch (profile_id, email, season_no, episode_no, show_id, status, watched_upto, time)
+             VALUES (:profile_id, :email, :season_no, :episode_no, :show_id, :status, :watched_upto, :time)
+             ON CONFLICT DO NOTHING`,
+            {
+                profile_id: str(r.PROFILE_ID),
+                email: str(r.EMAIL),
+                season_no: num(r.SEASON_NO),
+                episode_no: num(r.EPISODE_NO),
+                show_id: num(r.SHOW_ID),
+                status: str(r.STATUS),
+                watched_upto: num(r.WATCHED_UPTO, 0),
+                time: parseDate(r.TIME) || new Date(),
+            }
+        );
     });
 
     await database.simpleExecute(

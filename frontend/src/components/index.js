@@ -8,6 +8,6 @@ export {default as Form } from './form';
 export {default as Form2 } from './form2';
 export {default as Profiles} from './profiles';
 export {default as Loading} from './loading';
-export {default as Card } from './card';
+export {default as Card } from './Card';
 export {default as Player} from './player';
 export {default as Header2} from './header2';

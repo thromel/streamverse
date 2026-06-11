@@ -1,0 +1,13 @@
+{
+  "name": "streamverse",
+  "private": true,
+  "scripts": {
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "seed": "cd backend && npm run seed",
+    "backend": "cd backend && npm start",
+    "frontend": "cd frontend && npm start",
+    "smoke": "cd backend && node scripts/smoke-test.js",
+    "setup": "npm run db:up && sleep 3 && npm run seed"
+  }
+}

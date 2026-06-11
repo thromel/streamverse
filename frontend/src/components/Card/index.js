@@ -1,4 +1,4 @@
-import API_BASE_URL from 'config';
+import API_BASE_URL from '../../config';
 import React, { useState, useContext, createContext, useEffect } from 'react';
 import {AuthContext} from '../../context/auth-context';
 import AddIcon from '@material-ui/icons/Add';
